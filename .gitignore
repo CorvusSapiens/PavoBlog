@@ -1,0 +1,14 @@
+# 依赖
+node_modules
+
+# Next.js 构建输出
+.next
+
+# 环境变量（若以后添加）
+.env
+.env.local
+.env.*.local
+
+# 系统/编辑器
+.DS_Store
+*.log
