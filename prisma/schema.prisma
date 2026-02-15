@@ -1,0 +1,93 @@
+// Prisma schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PostType {
+  LEETCODE
+  BOOK_REVIEW   // 预留
+  MOVIE_REVIEW  // 预留
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+// ---------- 通用内容 ----------
+
+model Post {
+  id        String   @id @default(cuid())
+  type      PostType
+  title     String
+  slug      String   @unique
+  content   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  postTags         PostTag[]
+  leetcodeMeta     LeetCodeMeta?
+  leetcodeProgress LeetCodeProgress?
+  leetcodeSources  LeetCodeSource[]
+}
+
+// ---------- 标签 / 题单来源（可下拉多选 + 可创建） ----------
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  postTags PostTag[]
+}
+
+model ListSource {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  leetcodeSources LeetCodeSource[]
+}
+
+model PostTag {
+  postId String
+  tagId  String
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+}
+
+model LeetCodeSource {
+  postId   String
+  sourceId String
+  post     Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  source   ListSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@id([postId, sourceId])
+}
+
+// ---------- LeetCode 扩展 ----------
+
+model LeetCodeMeta {
+  postId      String    @id
+  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  difficulty  Difficulty
+  independent Boolean   @default(false)
+  problemUrl  String?
+}
+
+model LeetCodeProgress {
+  postId     String   @id
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  firstDate  DateTime @db.Date
+  latestDate DateTime @db.Date
+  count      Int      @default(0)
+}

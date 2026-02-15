@@ -1,7 +1,6 @@
-import { getPostsIndex } from './parsePost';
-import { buildTagsIndex } from './parsePost';
+import { prisma } from './db';
 
-/** 难度分布（frontmatter difficulty 或 #Easy/#Medium/#Hard 标签） */
+/** 难度分布（来自 DB LeetCodeMeta） */
 export interface DifficultyDistribution {
   easy: number;
   medium: number;
@@ -17,7 +16,7 @@ export interface TrendMonth {
 /** 热力图：按日聚合的发文数，key 为 YYYY-MM-DD */
 export type ActivityByDay = Record<string, number>;
 
-/** 构建期聚合的 Dashboard 数据，写入 public/stats.json */
+/** Dashboard 数据（Data 页数据来源：DB） */
 export interface DashboardStatsJson {
   totalArticles: number;
   leetcodeCount: number;
@@ -30,19 +29,7 @@ export interface DashboardStatsJson {
 
 const TOP_TAGS_COUNT = 10;
 const TREND_MONTHS = 6;
-const HEATMAP_DAYS = 364; // 52 周
-
-function inferDifficulty(
-  difficulty: 'easy' | 'medium' | 'hard' | undefined,
-  tags: string[]
-): 'easy' | 'medium' | 'hard' | null {
-  if (difficulty) return difficulty;
-  const lower = tags.map((t) => t.toLowerCase());
-  if (lower.includes('easy')) return 'easy';
-  if (lower.includes('medium')) return 'medium';
-  if (lower.includes('hard')) return 'hard';
-  return null;
-}
+const HEATMAP_DAYS = 364;
 
 function getMonthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -52,26 +39,38 @@ function getDayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/**
- * 构建期生成 Dashboard 统计：总文章数、LeetCode 数、难度分布、Top tags、近 6 个月趋势
- */
-export function buildDashboardStatsJson(): DashboardStatsJson {
-  const posts = getPostsIndex();
-  const tagsIndex = buildTagsIndex();
+/** 从数据库聚合 Data 页统计（总文章数、LeetCode 数、难度、Top 标签、近 6 月趋势、热力图） */
+export async function buildDashboardStatsFromDb(): Promise<DashboardStatsJson> {
+  const posts = await prisma.post.findMany({
+    where: { type: 'LEETCODE' },
+    select: {
+      createdAt: true,
+      leetcodeMeta: { select: { difficulty: true } },
+      postTags: { select: { tag: { select: { name: true } } } },
+    },
+  });
 
   const totalArticles = posts.length;
-  const leetcodeCount = posts.filter(
-    (p) => p.category === 'leetcode' || p.tags.some((t) => t.toLowerCase() === 'leetcode')
-  ).length;
+  const leetcodeCount = totalArticles;
 
   const difficultyDistribution: DifficultyDistribution = { easy: 0, medium: 0, hard: 0 };
   for (const p of posts) {
-    const d = inferDifficulty(p.difficulty, p.tags);
-    if (d) difficultyDistribution[d]++;
+    const d = p.leetcodeMeta?.difficulty;
+    if (d) {
+      const key = d.toLowerCase() as keyof DifficultyDistribution;
+      difficultyDistribution[key]++;
+    }
   }
 
-  const topTags = Array.from(tagsIndex.entries())
-    .map(([tag, list]) => ({ tag, count: list.length }))
+  const tagCount = new Map<string, number>();
+  for (const p of posts) {
+    for (const { tag } of p.postTags) {
+      const name = tag.name;
+      tagCount.set(name, (tagCount.get(name) ?? 0) + 1);
+    }
+  }
+  const topTags = Array.from(tagCount.entries())
+    .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, TOP_TAGS_COUNT);
 
@@ -83,9 +82,7 @@ export function buildDashboardStatsJson(): DashboardStatsJson {
   }
   const trendMap = new Map<string, number>(monthKeys.map((m) => [m, 0]));
   for (const p of posts) {
-    if (!p.date) continue;
-    const d = p.date instanceof Date ? p.date : new Date(p.date);
-    const key = getMonthKey(d);
+    const key = getMonthKey(p.createdAt);
     if (trendMap.has(key)) trendMap.set(key, (trendMap.get(key) ?? 0) + 1);
   }
   const trendLast6Months: TrendMonth[] = monthKeys.map((month) => ({
@@ -102,9 +99,7 @@ export function buildDashboardStatsJson(): DashboardStatsJson {
     activityByDay[getDayKey(d)] = 0;
   }
   for (const p of posts) {
-    if (!p.date) continue;
-    const d = p.date instanceof Date ? p.date : new Date(p.date);
-    const key = getDayKey(d);
+    const key = getDayKey(p.createdAt);
     if (key in activityByDay) activityByDay[key] = (activityByDay[key] ?? 0) + 1;
   }
 

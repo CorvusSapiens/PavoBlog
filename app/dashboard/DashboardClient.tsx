@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   PieChart,
   Pie,
@@ -43,27 +43,18 @@ function getHeatmapLevel(count: number): string {
   return 'bg-emerald-600 dark:bg-emerald-500';
 }
 
-export default function DashboardClient() {
-  const [stats, setStats] = useState<StatsJson | null>(null);
-  const [loading, setLoading] = useState(true);
+interface DashboardClientProps {
+  /** 由 Data 页服务端从 DB 聚合后传入 */
+  initialStats: StatsJson;
+}
 
-  useEffect(() => {
-    fetch('/stats.json')
-      .then((r) => r.json())
-      .then((data: StatsJson) => {
-        setStats(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+export default function DashboardClient({ initialStats }: DashboardClientProps) {
+  const [stats] = useState<StatsJson | null>(initialStats);
 
-  if (loading) {
-    return <p className="text-neutral-500 dark:text-neutral-400">正在加载统计…</p>;
-  }
   if (!stats) {
     return (
       <p className="text-neutral-500 dark:text-neutral-400">
-        暂无统计，请先运行 <code className="rounded bg-neutral-100 dark:bg-neutral-800 px-1">npm run generate-stats</code> 或执行构建。
+        暂无统计。
       </p>
     );
   }

@@ -1,11 +1,9 @@
-你是资深全栈工程师与技术写作者，帮我用 Next.js(App Router)+TypeScript+Tailwind+MDX 构建一个求职展示级知识管理博客
-目标：
-1) 文章用 MDX 写作，正文里的 #Tag 自动提取为标签，不要求手写 frontmatter tags
-2) 构建期生成：文章索引、tag 索引、search 索引、统计数据（总题量/难度/标签/趋势）
-3) 页面包括：主页、文章列表、文章详情、Tag 聚合页、Tag 云/统计页、Dashboard 页、搜索页
-4) 高质量工程化：类型安全、清晰目录结构、可测试（Vitest），尽量在构建期完成计算
-输出要求：
-- 先给目录结构与文件清单，再给实现步骤
-- 所有实现要可运行，避免伪代码
-- 解释关键设计取舍（为何构建期聚合、为何 shiki 等）
-- 优先使用 server components + SSG，避免不必要的 client state
+你要在现有 Next.js 14 App Router 项目（PavoBlog）上做“增量改造”，目标是最优结构 + 最精简逻辑
+严格约束：
+1) 不能重建项目、不能改动现有 /posts MDX 系统与现有统计/搜索逻辑（只允许加导航链接）
+2) 新功能只实现 LeetCode 笔记（未来可扩展到书评影评，但现在不做 UI）
+3) 数据持久化用 PostgreSQL + Prisma（本地 docker compose）
+4) 在线编辑发布：用 TipTap 编辑器，内容存 Json
+5) CRUD 与打卡优先使用 Server Actions（避免 app/api 增长），除非必要才建 route handlers
+6) 代码最少：不用 react-hook-form；表单用原生 form + FormData；校验只用 zod 并放在 server action 中
+7) 每次输出必须先列出“将新增/修改的文件清单（含路径）”，再给出代码，保证可运行

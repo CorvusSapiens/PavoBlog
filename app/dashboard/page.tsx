@@ -1,10 +1,12 @@
+import { buildDashboardStatsFromDb } from '@/lib/dashboard-stats';
 import DashboardClient from './DashboardClient';
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const stats = await buildDashboardStatsFromDb();
   return (
     <section>
       <h1 className="text-3xl font-bold mb-4">Data</h1>
-      <DashboardClient />
+      <DashboardClient initialStats={stats} />
     </section>
   );
 }

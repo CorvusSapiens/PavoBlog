@@ -13,6 +13,20 @@ npm run dev
 
 Then open [http://localhost:3000](http://localhost:3000).
 
+### local Postgres + Prisma (optional)
+
+```bash
+# 1. Copy env and launch Postgres
+cp .env.example .env
+docker compose up -d
+
+# 2. Run migrations and generate Prisma Client
+npx prisma migrate dev
+
+# 3. Open Prisma Studio view/edit data
+npx prisma studio
+```
+
 For production, `npm run build` will generate the search index and stats, then build. After that, `npm start`.
 
 ## Adding posts

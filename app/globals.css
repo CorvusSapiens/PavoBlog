@@ -26,3 +26,12 @@ body {
 [data-rehype-pretty-code-figure] code {
   @apply font-mono;
 }
+
+/* TipTap 占位符（is-empty / is-editor-empty 由 extension-placeholder 添加） */
+.tiptap p.is-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  @apply text-neutral-400 dark:text-neutral-500;
+  pointer-events: none;
+  height: 0;
+}

@@ -1,17 +1,15 @@
 import Link from 'next/link';
-import { getPostsIndex } from '@/lib/parsePost';
+import { listLeetCodeNotes } from '@/lib/leetcode.service';
 
 const LATEST_POSTS_COUNT = 5;
 
-function formatDate(d: string | Date | undefined): string {
-  if (!d) return '';
-  if (typeof d === 'string') return d;
+function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export default function HomePage() {
-  const posts = getPostsIndex();
-  const latestPosts = posts.slice(0, LATEST_POSTS_COUNT);
+export default async function HomePage() {
+  const allPosts = await listLeetCodeNotes();
+  const latestPosts = allPosts.slice(0, LATEST_POSTS_COUNT);
 
   return (
     <section>
@@ -27,18 +25,16 @@ export default function HomePage() {
         ) : (
           <ul className="space-y-2">
             {latestPosts.map((p) => (
-              <li key={p.slug}>
+              <li key={p.id}>
                 <Link
-                  href={`/posts/${p.slug}`}
+                  href={`/leetcode/${p.slug}`}
                   className="font-medium hover:underline text-blue-600 dark:text-blue-400"
                 >
                   {p.title}
                 </Link>
-                {p.date && (
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400 ml-2">
-                    {formatDate(p.date)}
-                  </span>
-                )}
+                <span className="text-sm text-neutral-500 dark:text-neutral-400 ml-2">
+                  {formatDate(p.updatedAt)}
+                </span>
               </li>
             ))}
           </ul>
