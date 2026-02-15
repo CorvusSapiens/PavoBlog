@@ -3,7 +3,7 @@ import {
   getCachedListLeetCodeNotes,
   getCachedListLeetCodeNotesPaginated,
   buildLeetCodeListQuery,
-  DEFAULT_LIST_PAGE_SIZE,
+  DEFAULT_LIST_PAGE_SIZE_SMALL,
 } from '@/lib/leetcode.service';
 import { extractPlainTextSummary } from '@/lib/leetcode-content';
 import LeetCodeCard from '@/components/leetcode/LeetCodeCard';
@@ -23,7 +23,7 @@ export default async function PostsPage({ searchParams }: Props) {
   const q = (resolved.q ?? '').trim();
   const tags = resolved.tags ? resolved.tags.split(',').map((t) => t.trim()).filter(Boolean) : [];
   const page = parsePage(resolved.page);
-  const pageSize = DEFAULT_LIST_PAGE_SIZE;
+  const pageSize = DEFAULT_LIST_PAGE_SIZE_SMALL;
 
   const [allNotes, result] = await Promise.all([
     getCachedListLeetCodeNotes({}),

@@ -332,7 +332,8 @@ export async function listLeetCodeNotes(filters: ListLeetCodeNotesFilters = {}):
   return list.map(toNoteDto);
 }
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE_SMALL = 8;
+const DEFAULT_PAGE_SIZE_LARGE = 20;
 
 export async function listLeetCodeNotesPaginated(
   filters: ListLeetCodeNotesFilters & { page: number; pageSize: number }
@@ -485,7 +486,8 @@ export type LeetCodeListParams = {
   page?: number;
 };
 
-export const DEFAULT_LIST_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+export const DEFAULT_LIST_PAGE_SIZE_SMALL = DEFAULT_PAGE_SIZE_SMALL;
+export const DEFAULT_LIST_PAGE_SIZE_LARGE = DEFAULT_PAGE_SIZE_LARGE;
 
 export function buildLeetCodeListQuery(params: LeetCodeListParams): string {
   const q = new URLSearchParams();
