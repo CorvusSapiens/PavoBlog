@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import {
-  listLeetCodeNotes,
+  getCachedListLeetCodeNotes,
   buildLeetCodeListQuery,
   type LeetCodeNoteDto,
 } from '@/lib/leetcode.service';
@@ -32,7 +32,7 @@ export default async function PostsPage({ searchParams }: Props) {
   const q = (resolved.q ?? '').trim();
   const tags = resolved.tags ? resolved.tags.split(',').map((t) => t.trim()).filter(Boolean) : [];
 
-  const notes = await listLeetCodeNotes();
+  const notes = await getCachedListLeetCodeNotes();
   const filtered = filterByTags(filterBySearch(notes, q), tags);
   const allTags = Array.from(new Set(notes.flatMap((n) => n.tags))).sort();
 

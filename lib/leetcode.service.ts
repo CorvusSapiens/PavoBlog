@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import { unstable_cache } from 'next/cache';
 import { prisma } from './db';
 
 type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
@@ -321,6 +322,36 @@ export async function getLeetCodeNoteBySlug(slug: string): Promise<LeetCodeNoteD
     include: includeLeetCode,
   });
   return post ? toNoteDto(post) : null;
+}
+
+/** 稳定序列化 filters 用作 cache key（key 顺序一致） */
+function cacheKeyFilters(f: ListLeetCodeNotesFilters): string {
+  const o = {
+    ...f,
+    tags: f.tags?.slice().sort(),
+    sources: f.sources?.slice().sort(),
+  };
+  return JSON.stringify(o);
+}
+
+/** 列表数据带 60s 缓存，用于公开列表/详情页，降低 DB 与冷启动成本 */
+export async function getCachedListLeetCodeNotes(
+  filters: ListLeetCodeNotesFilters = {}
+): Promise<LeetCodeNoteDto[]> {
+  return unstable_cache(
+    () => listLeetCodeNotes(filters),
+    ['leetcode-list', cacheKeyFilters(filters)],
+    { revalidate: 60 }
+  )();
+}
+
+/** 详情按 slug 带 60s 缓存，用于公开详情页 */
+export async function getCachedLeetCodeNoteBySlug(slug: string): Promise<LeetCodeNoteDto | null> {
+  return unstable_cache(
+    () => getLeetCodeNoteBySlug(slug),
+    ['leetcode-slug', slug],
+    { revalidate: 60 }
+  )();
 }
 
 /** todayISO: YYYY-MM-DD */

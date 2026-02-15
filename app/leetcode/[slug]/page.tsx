@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getLeetCodeNoteBySlug, buildLeetCodeListQuery } from '@/lib/leetcode.service';
+import { getCachedLeetCodeNoteBySlug, buildLeetCodeListQuery } from '@/lib/leetcode.service';
 import TipTapEditor from '@/components/editor/TipTapEditor';
 import CheckInButton from '@/components/leetcode/CheckInButton';
 import type { LeetCodeNoteDto } from '@/lib/leetcode.service';
@@ -17,7 +17,7 @@ type Props = { params: Promise<{ slug: string }> };
 
 export default async function LeetCodeDetailPage({ params }: Props) {
   const { slug } = await params;
-  const note = await getLeetCodeNoteBySlug(slug);
+  const note = await getCachedLeetCodeNoteBySlug(slug);
   if (!note) notFound();
 
   const n = note as LeetCodeNoteDto;

@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { prisma } from './db';
 
 /** 难度分布（来自 DB LeetCodeMeta） */
@@ -111,4 +112,13 @@ export async function buildDashboardStatsFromDb(): Promise<DashboardStatsJson> {
     trendLast6Months,
     activityByDay,
   };
+}
+
+/** 统计页数据带 5 分钟缓存，避免每次打开 Data 页都重查 */
+export async function getCachedDashboardStats(): Promise<DashboardStatsJson> {
+  return unstable_cache(
+    () => buildDashboardStatsFromDb(),
+    ['dashboard-stats'],
+    { revalidate: 300 }
+  )();
 }

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import {
-  listLeetCodeNotes,
+  getCachedListLeetCodeNotes,
   buildLeetCodeListQuery,
   type LeetCodeListParams,
   type FilterMode,
@@ -85,8 +85,8 @@ export default async function LeetCodeListPage({ searchParams }: Props) {
   const { mode, difficulty, q, sort, order } = parsed;
 
   const [allNotes, notes] = await Promise.all([
-    listLeetCodeNotes({}),
-    listLeetCodeNotes({
+    getCachedListLeetCodeNotes({}),
+    getCachedListLeetCodeNotes({
       tags: tagsArr.length ? tagsArr : undefined,
       tagsMode: mode,
       sources: sourcesArr.length ? sourcesArr : undefined,
