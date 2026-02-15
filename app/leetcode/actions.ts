@@ -138,12 +138,25 @@ function revalidateLeetCodePaths(): void {
   revalidatePath('/admin/leetcode', 'layout');
 }
 
+// ---------- 日志 ----------
+
+function logAction(action: string, event: 'start' | 'ok' | 'error', data?: Record<string, unknown>, err?: unknown): void {
+  const payload = { action, event, ...data };
+  if (event === 'error' && err != null) {
+    // 第二个参数传 Error 对象，Vercel 会记录完整堆栈
+    console.error('[leetcode-action]', JSON.stringify(payload), err);
+  } else {
+    console.log('[leetcode-action]', JSON.stringify(payload));
+  }
+}
+
 // ---------- Server Actions ----------
 
 export async function createLeetCodeAction(formData: FormData): Promise<ActionResult<LeetCodeNoteDto>> {
   try {
     const raw = formDataToObject(formData);
     const parsed = createSchema.parse(raw);
+    logAction('create', 'start', { title: parsed.title });
     const slug = await findAvailableSlug(slugify(parsed.title));
 
     const note = await createLeetCodeNote({
@@ -157,9 +170,11 @@ export async function createLeetCodeAction(formData: FormData): Promise<ActionRe
       problemUrl: parsed.problemUrl ?? null,
     });
     revalidateLeetCodePaths();
+    logAction('create', 'ok', { id: note.id, slug: note.slug });
     return { ok: true, data: note, redirect: `/leetcode/${note.slug}` };
   } catch (e) {
     const message = e instanceof z.ZodError ? e.issues.map((x) => x.message).join('; ') : e instanceof Error ? e.message : '创建失败';
+    logAction('create', 'error', { message }, e);
     return { ok: false, error: message };
   }
 }
@@ -169,6 +184,7 @@ export async function updateLeetCodeAction(formData: FormData): Promise<ActionRe
     const raw = formDataToObject(formData);
     const parsed = updateSchema.parse(raw);
     const idParsed = parsed.id;
+    logAction('update', 'start', { id: idParsed });
 
     const existing = await getLeetCodeNoteById(idParsed);
     if (!existing) return { ok: false, error: '笔记不存在' };
@@ -191,9 +207,11 @@ export async function updateLeetCodeAction(formData: FormData): Promise<ActionRe
 
     if (!note) return { ok: false, error: '更新失败' };
     revalidateLeetCodePaths();
+    logAction('update', 'ok', { id: idParsed, slug: note.slug });
     return { ok: true, data: note };
   } catch (e) {
     const message = e instanceof z.ZodError ? e.issues.map((x) => x.message).join('; ') : e instanceof Error ? e.message : '更新失败';
+    logAction('update', 'error', { message }, e);
     return { ok: false, error: message };
   }
 }
@@ -202,15 +220,18 @@ export async function deleteLeetCodeAction(formData: FormData): Promise<ActionRe
   try {
     const id = formData.get('id');
     const idParsed = idSchema.parse(id);
+    logAction('delete', 'start', { id: idParsed });
     const existing = await getLeetCodeNoteById(idParsed);
     if (!existing) return { ok: false, error: '笔记不存在' };
 
     const deleted = await deleteLeetCodeNote(idParsed);
     if (!deleted) return { ok: false, error: '删除失败' };
     revalidateLeetCodePaths();
+    logAction('delete', 'ok', { id: idParsed });
     return { ok: true, data: true };
   } catch (e) {
     const message = e instanceof z.ZodError ? e.issues.map((x) => x.message).join('; ') : e instanceof Error ? e.message : '删除失败';
+    logAction('delete', 'error', { message }, e);
     return { ok: false, error: message };
   }
 }
@@ -243,7 +264,9 @@ function setCheckInDone(postId: string): void {
 export async function checkInLeetCodeAction(id: string): Promise<ActionResult<LeetCodeNoteDto>> {
   try {
     const idParsed = idSchema.parse(id);
+    logAction('check-in', 'start', { id: idParsed });
     if (isCheckInRateLimited(idParsed)) {
+      logAction('check-in', 'error', { message: 'rate_limited' });
       return { ok: false, error: '请勿频繁打卡，请稍后再试' };
     }
 
@@ -253,9 +276,11 @@ export async function checkInLeetCodeAction(id: string): Promise<ActionResult<Le
 
     setCheckInDone(idParsed);
     revalidateLeetCodePaths();
+    logAction('check-in', 'ok', { id: idParsed, date: todayISO });
     return { ok: true, data: note };
   } catch (e) {
     const message = e instanceof z.ZodError ? e.issues.map((x) => x.message).join('; ') : e instanceof Error ? e.message : '打卡失败';
+    logAction('check-in', 'error', { message }, e);
     return { ok: false, error: message };
   }
 }
