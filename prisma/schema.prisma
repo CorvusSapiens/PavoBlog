@@ -7,12 +7,13 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum PostType {
   LEETCODE
-  BOOK_REVIEW   // 预留
-  MOVIE_REVIEW  // 预留
+  BOOK_REVIEW   
+  MOVIE_REVIEW 
 }
 
 enum Difficulty {
