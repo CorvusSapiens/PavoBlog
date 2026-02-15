@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client';
 import { unstable_cache } from 'next/cache';
 import { prisma } from './db';
 
@@ -36,6 +35,20 @@ export interface ListLeetCodeNotesFilters {
   tagsMode?: FilterMode;
   sources?: string[];
   sourcesMode?: FilterMode;
+  /** 关键词搜索（标题 / slug / 标签名） */
+  q?: string;
+  sort?: 'updatedAt' | 'createdAt' | 'title';
+  order?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ListLeetCodeNotesPaginatedResult {
+  items: LeetCodeNoteDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface LeetCodeMetaDto {
@@ -198,6 +211,17 @@ function buildListWhere(filters: ListLeetCodeNotesFilters) {
     }
   }
 
+  const q = filters.q?.trim();
+  if (q) {
+    conditions.push({
+      OR: [
+        { title: { contains: q, mode: 'insensitive' } },
+        { slug: { contains: q, mode: 'insensitive' } },
+        { postTags: { some: { tag: { name: { contains: q, mode: 'insensitive' } } } } },
+      ],
+    });
+  }
+
   return conditions.length === 1 ? conditions[0]! : { AND: conditions };
 }
 
@@ -308,6 +332,44 @@ export async function listLeetCodeNotes(filters: ListLeetCodeNotesFilters = {}):
   return list.map(toNoteDto);
 }
 
+const DEFAULT_PAGE_SIZE = 20;
+
+export async function listLeetCodeNotesPaginated(
+  filters: ListLeetCodeNotesFilters & { page: number; pageSize: number }
+): Promise<ListLeetCodeNotesPaginatedResult> {
+  const { page, pageSize, sort = 'updatedAt', order = 'desc', ...rest } = filters;
+  const where = buildListWhere(rest);
+  const skip = Math.max(0, (page - 1) * pageSize);
+  const take = Math.max(1, Math.min(100, pageSize));
+
+  const orderBy =
+    sort === 'title'
+      ? ({ title: order } as const)
+      : sort === 'createdAt'
+        ? ({ createdAt: order } as const)
+        : ({ updatedAt: order } as const);
+
+  const [list, total] = await Promise.all([
+    prisma.post.findMany({
+      where,
+      include: includeLeetCode,
+      orderBy,
+      skip,
+      take,
+    }),
+    prisma.post.count({ where }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / take));
+  return {
+    items: list.map(toNoteDto),
+    total,
+    page,
+    pageSize: take,
+    totalPages,
+  };
+}
+
 export async function getLeetCodeNoteById(id: string): Promise<LeetCodeNoteDto | null> {
   const post = await prisma.post.findUnique({
     where: { id, type: 'LEETCODE' },
@@ -345,6 +407,17 @@ export async function getCachedListLeetCodeNotes(
   )();
 }
 
+/** 分页列表带 60s 缓存 */
+export async function getCachedListLeetCodeNotesPaginated(
+  filters: ListLeetCodeNotesFilters & { page: number; pageSize: number }
+): Promise<ListLeetCodeNotesPaginatedResult> {
+  return unstable_cache(
+    () => listLeetCodeNotesPaginated(filters),
+    ['leetcode-list-paginated', cacheKeyFilters(filters), String(filters.page), String(filters.pageSize)],
+    { revalidate: 60 }
+  )();
+}
+
 /** 详情按 slug 带 60s 缓存，用于公开详情页 */
 export async function getCachedLeetCodeNoteBySlug(slug: string): Promise<LeetCodeNoteDto | null> {
   return unstable_cache(
@@ -363,7 +436,7 @@ export async function checkInLeetCode(id: string, todayISO: string): Promise<Lee
   });
   if (!post) return null;
 
-  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+  await prisma.$transaction(async (tx) => {
     const progress = await tx.leetCodeProgress.findUnique({ where: { postId: id } });
     if (!progress) {
       await tx.leetCodeProgress.create({
@@ -409,7 +482,10 @@ export type LeetCodeListParams = {
   q?: string;
   sort?: 'updatedAt' | 'createdAt' | 'title';
   order?: 'asc' | 'desc';
+  page?: number;
 };
+
+export const DEFAULT_LIST_PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 export function buildLeetCodeListQuery(params: LeetCodeListParams): string {
   const q = new URLSearchParams();
@@ -420,6 +496,7 @@ export function buildLeetCodeListQuery(params: LeetCodeListParams): string {
   if (params.q?.trim()) q.set('q', params.q.trim());
   if (params.sort) q.set('sort', params.sort);
   if (params.order) q.set('order', params.order);
+  if (params.page != null && params.page > 1) q.set('page', String(params.page));
   const s = q.toString();
   return s ? `?${s}` : '';
 }

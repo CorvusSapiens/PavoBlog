@@ -1,45 +1,51 @@
 import Link from 'next/link';
 import {
   getCachedListLeetCodeNotes,
+  getCachedListLeetCodeNotesPaginated,
   buildLeetCodeListQuery,
-  type LeetCodeNoteDto,
+  DEFAULT_LIST_PAGE_SIZE,
 } from '@/lib/leetcode.service';
 import { extractPlainTextSummary } from '@/lib/leetcode-content';
 import LeetCodeCard from '@/components/leetcode/LeetCodeCard';
+import Pagination from '@/components/ui/Pagination';
 
-type SearchParams = { q?: string; tags?: string };
-
-function filterBySearch(notes: LeetCodeNoteDto[], q: string): LeetCodeNoteDto[] {
-  if (!q.trim()) return notes;
-  const lower = q.trim().toLowerCase();
-  return notes.filter(
-    (n) =>
-      n.title.toLowerCase().includes(lower) ||
-      n.slug.toLowerCase().includes(lower) ||
-      n.tags.some((t) => t.toLowerCase().includes(lower))
-  );
-}
-
-function filterByTags(notes: LeetCodeNoteDto[], tags: string[]): LeetCodeNoteDto[] {
-  if (tags.length === 0) return notes;
-  return notes.filter((n) => tags.every((t) => n.tags.includes(t)));
-}
+type SearchParams = { q?: string; tags?: string; page?: string };
 
 type Props = { searchParams: Promise<SearchParams> };
+
+function parsePage(s: string | undefined): number {
+  const n = parseInt(s ?? '1', 10);
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
 
 export default async function PostsPage({ searchParams }: Props) {
   const resolved = await searchParams;
   const q = (resolved.q ?? '').trim();
   const tags = resolved.tags ? resolved.tags.split(',').map((t) => t.trim()).filter(Boolean) : [];
+  const page = parsePage(resolved.page);
+  const pageSize = DEFAULT_LIST_PAGE_SIZE;
 
-  const notes = await getCachedListLeetCodeNotes();
-  const filtered = filterByTags(filterBySearch(notes, q), tags);
-  const allTags = Array.from(new Set(notes.flatMap((n) => n.tags))).sort();
+  const [allNotes, result] = await Promise.all([
+    getCachedListLeetCodeNotes({}),
+    getCachedListLeetCodeNotesPaginated({
+      tags: tags.length ? tags : undefined,
+      q: q || undefined,
+      page,
+      pageSize,
+    }),
+  ]);
 
-  const baseUrl = '/leetcode';
+  const allTags = Array.from(new Set(allNotes.flatMap((n) => n.tags))).sort();
+  const { items, total, totalPages } = result;
+
+  const baseUrl = '/posts';
   const currentQuery = { tags, sources: [] as string[], mode: 'and' as const };
   const buildQuery = (p: Parameters<typeof buildLeetCodeListQuery>[0]) =>
-    buildLeetCodeListQuery({ ...p, tags: p?.tags ?? currentQuery.tags, sources: p?.sources ?? [], mode: p?.mode ?? 'and' });
+    buildLeetCodeListQuery({ ...p, tags: p?.tags ?? currentQuery.tags, sources: p?.sources ?? [], mode: p?.mode ?? 'and', page: p?.page });
+
+  const queryParams: Record<string, string> = {};
+  if (tags.length) queryParams.tags = tags.join(',');
+  if (q) queryParams.q = q;
 
   return (
     <section>
@@ -47,6 +53,7 @@ export default async function PostsPage({ searchParams }: Props) {
 
       <form method="get" className="mb-4">
         <input type="hidden" name="tags" value={tags.join(',')} />
+        {page > 1 && <input type="hidden" name="page" value={String(page)} />}
         <input
           type="search"
           name="q"
@@ -66,7 +73,7 @@ export default async function PostsPage({ searchParams }: Props) {
             const params = new URLSearchParams();
             if (newTags.length) params.set('tags', newTags.join(','));
             if (q) params.set('q', q);
-            const href = '/posts' + (params.toString() ? '?' + params.toString() : '');
+            const href = baseUrl + (params.toString() ? '?' + params.toString() : '');
             return (
               <Link
                 key={tag}
@@ -80,21 +87,31 @@ export default async function PostsPage({ searchParams }: Props) {
         </div>
       )}
 
-      {filtered.length === 0 ? (
+      {items.length === 0 ? (
         <p className="text-sm text-neutral-500">暂无文章。</p>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
-          {filtered.map((n) => (
-            <LeetCodeCard
-              key={n.id}
-              note={n}
-              summary={extractPlainTextSummary(n.content as Record<string, unknown>, 160)}
-              baseUrl={baseUrl}
-              currentQuery={currentQuery}
-              buildQuery={(p) => buildLeetCodeListQuery({ tags: p?.tags ?? [], sources: p?.sources ?? [], mode: p?.mode ?? 'and', difficulty: p?.difficulty })}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
+            {items.map((n) => (
+              <LeetCodeCard
+                key={n.id}
+                note={n}
+                summary={extractPlainTextSummary(n.content as Record<string, unknown>, 160)}
+                baseUrl="/leetcode"
+                currentQuery={currentQuery}
+                buildQuery={(p) => buildLeetCodeListQuery({ tags: p?.tags ?? [], sources: p?.sources ?? [], mode: p?.mode ?? 'and', difficulty: p?.difficulty })}
+              />
+            ))}
+          </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={pageSize}
+            basePath={baseUrl}
+            queryParams={queryParams}
+          />
+        </>
       )}
     </section>
   );

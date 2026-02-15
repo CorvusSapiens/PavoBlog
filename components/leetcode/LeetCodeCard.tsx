@@ -62,7 +62,7 @@ export default function LeetCodeCard({
 
   return (
     <article className="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900/50 overflow-hidden flex flex-col">
-      {/* 第一层：标题区 */}
+      {/* 第一层：标题区 + 难度 + 打卡 */}
       <div className="p-4 pb-2 flex items-start justify-between gap-3">
         <Link
           href={`/leetcode/${note.slug}`}
@@ -70,13 +70,19 @@ export default function LeetCodeCard({
         >
           {note.title}
         </Link>
-        {difficulty && (
-          <span
-            className={`shrink-0 rounded border px-2 py-0.5 text-xs font-medium capitalize ${difficultyClass}`}
-          >
-            {difficulty.toLowerCase()}
-          </span>
-        )}
+        <div className="shrink-0 flex items-center gap-2">
+          {difficulty && (
+            <span
+              className={`rounded border px-2 py-0.5 text-xs font-medium capitalize ${difficultyClass}`}
+            >
+              {difficulty.toLowerCase()}
+            </span>
+          )}
+          <CheckInButton
+            noteId={note.id}
+            className="rounded border border-neutral-900 dark:border-neutral-900 bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900 px-2.5 py-0.5 text-xs font-medium hover:opacity-90 disabled:opacity-50"
+          />
+        </div>
       </div>
 
       {/* 网址 */}
@@ -137,18 +143,14 @@ export default function LeetCodeCard({
         </p>
       )}
 
-      {/* 第四层：进度与操作 */}
-      <div className="px-4 py-3 mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 dark:border-neutral-800">
+      {/* 第四层：进度 */}
+      <div className="px-4 py-3 mt-auto border-t border-neutral-100 dark:border-neutral-800">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500 dark:text-neutral-400">
           <span>首次 {dp.firstDate}</span>
           <span>最近 {dp.latestDate}</span>
           <span>{dp.count} 次</span>
           <span>{note.meta?.independent ? '独立 ✓' : '—'}</span>
         </div>
-        <CheckInButton
-          noteId={note.id}
-          className="rounded-md bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900 px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-50"
-        />
       </div>
     </article>
   );

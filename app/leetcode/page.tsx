@@ -1,13 +1,15 @@
 import Link from 'next/link';
 import {
   getCachedListLeetCodeNotes,
+  getCachedListLeetCodeNotesPaginated,
   buildLeetCodeListQuery,
   type LeetCodeListParams,
   type FilterMode,
+  DEFAULT_LIST_PAGE_SIZE,
 } from '@/lib/leetcode.service';
 import { extractPlainTextSummary } from '@/lib/leetcode-content';
-import type { LeetCodeNoteDto } from '@/lib/leetcode.service';
 import LeetCodeCard from '@/components/leetcode/LeetCodeCard';
+import Pagination from '@/components/ui/Pagination';
 
 type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 
@@ -19,6 +21,7 @@ type SearchParams = {
   q?: string;
   sort?: string;
   order?: string;
+  page?: string;
 };
 
 function parseListParams(resolved: SearchParams) {
@@ -31,36 +34,11 @@ function parseListParams(resolved: SearchParams) {
   const q = (resolved.q ?? '').trim();
   const sort: 'updatedAt' | 'createdAt' | 'title' = ['createdAt', 'title'].includes(resolved.sort ?? '') ? (resolved.sort as 'createdAt' | 'title') : 'updatedAt';
   const order: 'asc' | 'desc' = resolved.order === 'asc' ? 'asc' : 'desc';
-  return { tags, sources, mode, difficulty: validDifficulty, q, sort, order };
-}
-
-function filterBySearch(notes: LeetCodeNoteDto[], q: string): LeetCodeNoteDto[] {
-  if (!q) return notes;
-  const lower = q.toLowerCase();
-  return notes.filter(
-    (n) =>
-      n.title.toLowerCase().includes(lower) ||
-      n.slug.toLowerCase().includes(lower) ||
-      n.tags.some((t) => t.toLowerCase().includes(lower))
-  );
-}
-
-function sortNotes(
-  notes: LeetCodeNoteDto[],
-  sort: 'updatedAt' | 'createdAt' | 'title',
-  order: 'asc' | 'desc'
-): LeetCodeNoteDto[] {
-  const arr = [...notes];
-  const mult = order === 'asc' ? 1 : -1;
-  arr.sort((a, b) => {
-    if (sort === 'title') {
-      return mult * a.title.localeCompare(b.title);
-    }
-    const da = sort === 'createdAt' ? a.createdAt : a.updatedAt;
-    const db = sort === 'createdAt' ? b.createdAt : b.updatedAt;
-    return mult * (new Date(da).getTime() - new Date(db).getTime());
-  });
-  return arr;
+  const page = (() => {
+    const n = parseInt(resolved.page ?? '1', 10);
+    return Number.isFinite(n) && n >= 1 ? n : 1;
+  })();
+  return { tags, sources, mode, difficulty: validDifficulty, q, sort, order, page };
 }
 
 const DIFFICULTIES: { value: Difficulty; label: string }[] = [
@@ -82,29 +60,41 @@ export default async function LeetCodeListPage({ searchParams }: Props) {
   const parsed = parseListParams(resolved);
   const tagsArr = parsed.tags;
   const sourcesArr = parsed.sources;
-  const { mode, difficulty, q, sort, order } = parsed;
+  const { mode, difficulty, q, sort, order, page } = parsed;
+  const pageSize = DEFAULT_LIST_PAGE_SIZE;
 
-  const [allNotes, notes] = await Promise.all([
+  const [allNotes, result] = await Promise.all([
     getCachedListLeetCodeNotes({}),
-    getCachedListLeetCodeNotes({
+    getCachedListLeetCodeNotesPaginated({
       tags: tagsArr.length ? tagsArr : undefined,
       tagsMode: mode,
       sources: sourcesArr.length ? sourcesArr : undefined,
       sourcesMode: mode,
       difficulty,
+      q: q || undefined,
+      sort,
+      order,
+      page,
+      pageSize,
     }),
   ]);
 
-  const filtered = filterBySearch(notes, q);
-  const sorted = sortNotes(filtered, sort, order);
-
+  const { items: sorted, total, totalPages } = result;
   const allTags = Array.from(new Set(allNotes.flatMap((n) => n.tags))).sort();
   const allSources = Array.from(new Set(allNotes.flatMap((n) => n.sources))).sort();
 
   const baseUrl = '/leetcode';
-  const listParams: LeetCodeListParams = { tags: tagsArr, sources: sourcesArr, mode, difficulty, q: q || undefined, sort, order };
+  const listParams: LeetCodeListParams = { tags: tagsArr, sources: sourcesArr, mode, difficulty, q: q || undefined, sort, order, page };
   const buildQuery = (overrides: Partial<LeetCodeListParams>) =>
     buildLeetCodeListQuery({ ...listParams, ...overrides });
+  const queryParams: Record<string, string> = {};
+  if (tagsArr.length) queryParams.tags = tagsArr.join(',');
+  if (sourcesArr.length) queryParams.sources = sourcesArr.join(',');
+  queryParams.mode = mode;
+  if (difficulty) queryParams.difficulty = difficulty;
+  if (q) queryParams.q = q;
+  queryParams.sort = sort;
+  queryParams.order = order;
   const currentQuery = { tags: tagsArr, sources: sourcesArr, mode: mode ?? 'and', difficulty };
 
   return (
@@ -119,6 +109,7 @@ export default async function LeetCodeListPage({ searchParams }: Props) {
         {difficulty && <input type="hidden" name="difficulty" value={difficulty} />}
         <input type="hidden" name="sort" value={sort} />
         <input type="hidden" name="order" value={order} />
+        {page > 1 && <input type="hidden" name="page" value={String(page)} />}
         <input
           type="search"
           name="q"
@@ -244,18 +235,28 @@ export default async function LeetCodeListPage({ searchParams }: Props) {
       {sorted.length === 0 ? (
         <p className="text-neutral-500 dark:text-neutral-400">暂无匹配笔记。</p>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
-          {sorted.map((n) => (
-            <LeetCodeCard
-              key={n.id}
-              note={n}
-              summary={extractPlainTextSummary(n.content as Record<string, unknown>, 160)}
-              baseUrl={baseUrl}
-              currentQuery={currentQuery}
-              buildQuery={(p) => buildLeetCodeListQuery({ ...listParams, ...p })}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
+            {sorted.map((n) => (
+              <LeetCodeCard
+                key={n.id}
+                note={n}
+                summary={extractPlainTextSummary(n.content as Record<string, unknown>, 160)}
+                baseUrl={baseUrl}
+                currentQuery={currentQuery}
+                buildQuery={(p) => buildLeetCodeListQuery({ ...listParams, ...p })}
+              />
+            ))}
+          </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={pageSize}
+            basePath={baseUrl}
+            queryParams={queryParams}
+          />
+        </>
       )}
     </section>
   );

@@ -1,13 +1,31 @@
 import Link from 'next/link';
-import { listLeetCodeNotes } from '@/lib/leetcode.service';
+import { listLeetCodeNotesPaginated, DEFAULT_LIST_PAGE_SIZE } from '@/lib/leetcode.service';
 import { deleteLeetCodeFormAction } from '@/app/leetcode/actions';
+import Pagination from '@/components/ui/Pagination';
 
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export default async function AdminLeetCodeListPage() {
-  const notes = await listLeetCodeNotes({});
+type Props = { searchParams: Promise<{ page?: string }> };
+
+function parsePage(s: string | undefined): number {
+  const n = parseInt(s ?? '1', 10);
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
+
+export default async function AdminLeetCodeListPage({ searchParams }: Props) {
+  const resolved = await searchParams;
+  const page = parsePage(resolved.page);
+  const pageSize = DEFAULT_LIST_PAGE_SIZE;
+
+  const { items: notes, total, totalPages } = await listLeetCodeNotesPaginated({
+    page,
+    pageSize,
+  });
+
+  const basePath = '/admin/leetcode';
+  const queryParams: Record<string, string> = {};
 
   return (
     <div>
@@ -15,20 +33,21 @@ export default async function AdminLeetCodeListPage() {
       {notes.length === 0 ? (
         <p className="text-neutral-500 dark:text-neutral-400 text-sm">暂无笔记，<Link href="/admin/leetcode/new" className="text-blue-600 dark:text-blue-400 hover:underline">新建</Link>。</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden">
-            <thead>
-              <tr className="bg-neutral-50 dark:bg-neutral-800/50">
-                <th className="text-left p-3 font-medium">标题</th>
-                <th className="text-left p-3 font-medium">难度</th>
-                <th className="text-left p-3 font-medium">题单</th>
-                <th className="text-left p-3 font-medium">标签</th>
-                <th className="text-left p-3 font-medium">更新</th>
-                <th className="text-right p-3 font-medium">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {notes.map((n) => (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden">
+              <thead>
+                <tr className="bg-neutral-50 dark:bg-neutral-800/50">
+                  <th className="text-left p-3 font-medium">标题</th>
+                  <th className="text-left p-3 font-medium">难度</th>
+                  <th className="text-left p-3 font-medium">题单</th>
+                  <th className="text-left p-3 font-medium">标签</th>
+                  <th className="text-left p-3 font-medium">更新</th>
+                  <th className="text-right p-3 font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {notes.map((n) => (
                 <tr key={n.id} className="border-t border-neutral-200 dark:border-neutral-700">
                   <td className="p-3">
                     <Link href={`/leetcode/${n.slug}`} className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
@@ -64,9 +83,18 @@ export default async function AdminLeetCodeListPage() {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={pageSize}
+            basePath={basePath}
+            queryParams={queryParams}
+          />
+        </>
       )}
     </div>
   );
