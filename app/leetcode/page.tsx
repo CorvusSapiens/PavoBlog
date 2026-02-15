@@ -5,7 +5,7 @@ import {
   buildLeetCodeListQuery,
   type LeetCodeListParams,
   type FilterMode,
-  DEFAULT_LIST_PAGE_SIZE,
+  DEFAULT_LIST_PAGE_SIZE_SMALL,
 } from '@/lib/leetcode.service';
 import { extractPlainTextSummary } from '@/lib/leetcode-content';
 import LeetCodeCard from '@/components/leetcode/LeetCodeCard';
@@ -61,7 +61,7 @@ export default async function LeetCodeListPage({ searchParams }: Props) {
   const tagsArr = parsed.tags;
   const sourcesArr = parsed.sources;
   const { mode, difficulty, q, sort, order, page } = parsed;
-  const pageSize = DEFAULT_LIST_PAGE_SIZE;
+  const pageSize = DEFAULT_LIST_PAGE_SIZE_SMALL;
 
   const [allNotes, result] = await Promise.all([
     getCachedListLeetCodeNotes({}),

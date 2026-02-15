@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { listLeetCodeNotesPaginated, DEFAULT_LIST_PAGE_SIZE } from '@/lib/leetcode.service';
+import { listLeetCodeNotesPaginated, DEFAULT_LIST_PAGE_SIZE_LARGE } from '@/lib/leetcode.service';
 import { deleteLeetCodeFormAction } from '@/app/leetcode/actions';
 import Pagination from '@/components/ui/Pagination';
 
@@ -17,7 +17,7 @@ function parsePage(s: string | undefined): number {
 export default async function AdminLeetCodeListPage({ searchParams }: Props) {
   const resolved = await searchParams;
   const page = parsePage(resolved.page);
-  const pageSize = DEFAULT_LIST_PAGE_SIZE;
+  const pageSize = DEFAULT_LIST_PAGE_SIZE_LARGE;
 
   const { items: notes, total, totalPages } = await listLeetCodeNotesPaginated({
     page,
