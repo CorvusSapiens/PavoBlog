@@ -220,13 +220,38 @@ export async function deleteLeetCodeFormAction(formData: FormData): Promise<void
   await deleteLeetCodeAction(formData);
 }
 
+// ---------- Check-in 限流：同一 postId 短时间重复请求直接拒绝 ----------
+
+const CHECK_IN_COOLDOWN_MS = 15_000; // 15 秒内同一笔记只允许打卡一次
+const lastCheckInByPostId = new Map<string, number>();
+
+function isCheckInRateLimited(postId: string): boolean {
+  const last = lastCheckInByPostId.get(postId);
+  if (last == null) return false;
+  return Date.now() - last < CHECK_IN_COOLDOWN_MS;
+}
+
+function setCheckInDone(postId: string): void {
+  lastCheckInByPostId.set(postId, Date.now());
+  // 避免 Map 无限增长：只保留最近 1 分钟内的记录
+  const cutoff = Date.now() - 60_000;
+  Array.from(lastCheckInByPostId.entries()).forEach(([pid, ts]) => {
+    if (ts < cutoff) lastCheckInByPostId.delete(pid);
+  });
+}
+
 export async function checkInLeetCodeAction(id: string): Promise<ActionResult<LeetCodeNoteDto>> {
   try {
     const idParsed = idSchema.parse(id);
-    const todayISO = new Date().toISOString().slice(0, 10);
+    if (isCheckInRateLimited(idParsed)) {
+      return { ok: false, error: '请勿频繁打卡，请稍后再试' };
+    }
 
+    const todayISO = new Date().toISOString().slice(0, 10);
     const note = await checkInLeetCode(idParsed, todayISO);
     if (!note) return { ok: false, error: '笔记不存在' };
+
+    setCheckInDone(idParsed);
     revalidateLeetCodePaths();
     return { ok: true, data: note };
   } catch (e) {
