@@ -4,7 +4,7 @@
 export interface ArticleMeta {
   slug: string;
   title: string;
-  /** gray-matter 可能解析为 string 或 Date */
+  /** 可能为 string 或 Date */
   date?: string | Date;
   difficulty?: 'easy' | 'medium' | 'hard';
   category: 'leetcode' | 'books';

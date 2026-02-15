@@ -1,6 +1,6 @@
 你要在现有 Next.js 14 App Router 项目（PavoBlog）上做“增量改造”，目标是最优结构 + 最精简逻辑
 严格约束：
-1) 不能重建项目、不能改动现有 /posts MDX 系统与现有统计/搜索逻辑（只允许加导航链接）
+1) 不能重建项目、不能改动现有 /posts 与现有统计/搜索逻辑（只允许加导航链接）
 2) 新功能只实现 LeetCode 笔记（未来可扩展到书评影评，但现在不做 UI）
 3) 数据持久化用 PostgreSQL + Prisma（本地 docker compose）
 4) 在线编辑发布：用 TipTap 编辑器，内容存 Json
