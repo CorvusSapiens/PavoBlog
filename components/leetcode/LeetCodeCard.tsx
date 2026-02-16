@@ -85,20 +85,6 @@ export default function LeetCodeCard({
         </div>
       </div>
 
-      {/* 网址 */}
-      {note.meta?.problemUrl && (
-        <div className="px-4 pb-2">
-          <a
-            href={note.meta.problemUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block max-w-full"
-          >
-            {note.meta.problemUrl}
-          </a>
-        </div>
-      )}
-
       {/* 第二层：题单来源 + 标签 */}
       <div className="px-4 pb-2 flex flex-wrap items-center gap-1.5">
         {note.sources.length > 0 && (
